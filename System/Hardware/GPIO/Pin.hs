@@ -1,4 +1,10 @@
-module System.Hardware.GPIO.Pin where
+module System.Hardware.GPIO.Pin (
+        PinValue(..)
+      , PinDirection(..)
+
+      , toPinDirection
+      , toPinValue
+) where
 
 data PinValue = Lo | Hi
       deriving (Eq, Ord)

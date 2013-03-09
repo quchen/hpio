@@ -80,7 +80,7 @@ valueGet (HWID i) = toPinValue <$> readFile (gpioValue i)
 --
 --   TODO: Check whether this fails when the pin is in read mode
 directionSet :: HWID -> PinDirection -> IO ()
-directionSet (HWID i) d = writeFile (gpioValue i) $ show d ++ newline
+directionSet (HWID i) d = writeFile (gpioDirection i) $ show d ++ newline
 
 -- | Reads the value of a GPIO pin. Interprets anything that's not @in@ as
 --   'Out'.
