@@ -10,6 +10,7 @@ import System.IO
 import Text.Printf
 import Data.Char (toLower)
 import Control.Concurrent
+import Control.Exception
 
 import System.Hardware.GPIO
 
@@ -26,24 +27,22 @@ wordSpacer   = timePrefactor * 20
 
 
 main :: IO ()
-main = do let hwid = HWID 4
-          h <- export hwid
-          directionSet hwid Out
-          morseLoop h
-          unexport hwid h
+main = bracket (construct (HWID 4) Out)
+               nuke
+               morseLoop
 
 
 
-morseLoop :: ValueHandle -> IO ()
-morseLoop h = do putStr "Enter message: "
-                 hFlush stdout
-                 msg <- getLine
-                 unless (null msg) $ do morse h msg
-                                        morseLoop h
+morseLoop :: HiPin -> IO ()
+morseLoop pin = do putStr "Enter message: "
+                   hFlush stdout
+                   msg <- getLine
+                   unless (null msg) $ do morse pin msg
+                                          morseLoop pin
 
 
 
-type MorseCommand = ReaderT ValueHandle IO ()
+type MorseCommand = ReaderT HiPin IO ()
 
 
 
@@ -53,9 +52,9 @@ pause = threadDelay
 
 
 
--- | Morses a string to a GPIO pin represented by a 'ValueHandle'.
-morse :: ValueHandle -> String -> IO ()
-morse h message = runReaderT (morseString message) h
+-- | Morses a string to a GPIO pin represented by a 'HiPin'.
+morse :: HiPin -> String -> IO ()
+morse pin message = runReaderT (morseString message) pin
 
 
 
@@ -96,16 +95,16 @@ morseLetter char = printLetter >> combineMorses morseAtom morseChar atomSpacer
 
 
 -- | Morse command for a single atom (dit/dah).
-morseAtom :: MorseAtom -> ReaderT ValueHandle IO ()
-morseAtom atom = do h <- ask
-                    lift $ blink h atom
+morseAtom :: MorseAtom -> MorseCommand
+morseAtom atom = do pin <- ask
+                    lift $ blink pin atom
 
-blink :: ValueHandle -> MorseAtom -> IO ()
-blink h atom = do let time Dit = timeDit
-                      time Dah = timeDah
-                  valueSet h Hi
-                  pause $ time atom
-                  valueSet h Lo
+blink :: HiPin -> MorseAtom -> IO ()
+blink pin atom = do let time Dit = timeDit
+                        time Dah = timeDah
+                    setValue pin Hi
+                    pause $ time atom
+                    setValue pin Lo
 
 
 

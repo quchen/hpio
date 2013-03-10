@@ -9,48 +9,83 @@ module System.Hardware.GPIO.LowLevel (
       -- * Initialization, deallocation
         export
       , unexport
+      , exists
+      , absorb
+      , nuke
 
       -- * Setters/getters
 
-      , valueSet
-      , valueGet
+      , setValue
+      , getValue
 
-      , directionSet
-      , directionGet
+      , setDirection
+      , getDirection
 
-)where
+      , module System.Hardware.GPIO.HWID
+      , module System.Hardware.GPIO.Pin
+
+) where
+
+
 
 import Text.Printf
 import System.IO
 import Data.Functor
+import System.Directory
+import System.FilePath
+import Control.Exception (catch, SomeException)
+import Prelude hiding (catch)
 
 import System.Hardware.GPIO.HWID
 import System.Hardware.GPIO.Pin
 
--- | Line feed
-lf :: String
-lf = "\n"
 
+gpio :: String
+gpio = "/sys/class/gpio"
 -- | Path to the export handler
 gpioExport :: String
-gpioExport = "/sys/class/gpio/export"
+gpioExport = gpio </> "export"
 -- | Path to the unexport handler
 gpioUnexport :: String
-gpioUnexport = "/sys/class/gpio/unexport"
+gpioUnexport = gpio </> "unexport"
+-- | Path to the GPIO directory of a pin
+gpioDirectory :: Int -> String
+gpioDirectory i = gpio </> gpio ++ show i
 -- | Path to the value handler of a pin
 gpioValue :: Int -> String
-gpioValue i = printf "/sys/class/gpio/gpio%d/value" i
+gpioValue i = gpioDirectory i </> "value"
 -- | Path to the direction handler of a pin
 gpioDirection :: Int -> String
-gpioDirection i = printf "/sys/class/gpio/gpio%d/direction" i
+gpioDirection i = gpioDirectory i </> "direction"
+
+
 
 -- | Exports (connects) a GPIO pin (by writing to /sys/class/gpio/export), and
 --   returns a pointer to the value file generated.
 --
 --   Fails if the pin is already exported.
 export :: HWID -> IO ValueHandle
-export (HWID i) = do writeFile gpioExport $ show i ++ lf
-                     ValueHandle <$> openFile (gpioValue i) ReadWriteMode
+export hwid@(HWID i) = do writeFile gpioExport $ show i ++ "\n"
+                          absorb hwid
+
+
+
+-- | Creates a handle to the value of an already existing pin.
+--
+--   Be careful not to absorb a pin created by some other program, or the
+--   interference may be nasty!
+absorb :: HWID -> IO ValueHandle
+absorb (HWID i) = ValueHandle <$> openFile (gpioValue i) ReadWriteMode
+
+
+
+-- | Checks whether a GPIO pin currently exists, i.e. was exported. Note that
+--   this is done on an OS level, and there is no test whether the pin may have
+--   been allocated by some other program.
+exists :: HWID -> IO Bool
+exists (HWID i) = doesFileExist $ gpioDirectory i
+
+
 
 -- | Unexports (disconnects) a GPIO pin (by writing to
 --   /sys/class/gpio/unexport).
@@ -61,15 +96,33 @@ export (HWID i) = do writeFile gpioExport $ show i ++ lf
 --         value file. Is this a problem?
 unexport :: HWID -> ValueHandle -> IO ()
 unexport (HWID i) (ValueHandle h) = do hClose h
-                                       writeFile gpioUnexport $ show i ++ lf
+                                       writeFile gpioUnexport $ show i ++ "\n"
+
+
+-- | Deallocates a pin whether or not it exists; does not issue any exceptions.
+--   This can be useful as part of bracketing, in order to deallocate the pin
+--   no matter what.
+nuke :: HWID -> ValueHandle -> IO ()
+nuke (HWID i) (ValueHandle h) = do ignoreException $ hClose h
+                                   ignoreException $ writeFile gpioUnexport $
+                                                     show i ++ "\n"
+      where ignoreException f = catch f doNothing
+            doNothing :: SomeException -> IO ()
+            doNothing _ = return ()
+-- TODO: The catchall above may not be the ideal solution; instead, possible
+--       exceptions should be ignored individually. See the docs for further
+--       information:
+--       http://www.haskell.org/ghc/docs/latest/html/libraries/base/Control-Exception.html#g:4
+
 
 -- | Sets the value of a GPIO pin.
 --
 --   Fails if the pin wasn't exported first.
 --
 --   TODO: Check whether this fails when the pin is in read mode
-valueSet :: ValueHandle -> PinValue -> IO ()
-valueSet (ValueHandle h) value = seekBegin h >> hPrint h value >> hFlush h
+setValue :: ValueHandle -> PinValue -> IO ()
+setValue (ValueHandle h) value = seekBegin h >> hPrint h value >> hFlush h
+
 
 
 -- | Reads the value of a GPIO pin. Interprets anything that's not starting with
@@ -78,17 +131,20 @@ valueSet (ValueHandle h) value = seekBegin h >> hPrint h value >> hFlush h
 --   Fails if the pin wasn't exported first.
 --
 --   TODO: Check whether this fails when the pin is in write mode
-valueGet :: ValueHandle -> IO PinValue
-valueGet (ValueHandle h) = do seekBegin h
-                              toPinValue <$> hGetContents h
+getValue :: ValueHandle -> IO PinValue
+getValue (ValueHandle h) = seekBegin h >> toPinValue <$> hGetContents h
+
+
 
 -- | Sets the direction of a GPIO pin.
 --
 --   Fails if the pin wasn't exported first.
 --
 --   TODO: Check whether this fails when the pin is in read mode
-directionSet :: HWID -> PinDirection -> IO ()
-directionSet (HWID i) d = writeFile (gpioDirection i) $ show d ++ lf
+setDirection :: HWID -> PinDirection -> IO ()
+setDirection (HWID i) d = writeFile (gpioDirection i) $ show d ++ "\n"
+
+
 
 -- | Reads the value of a GPIO pin. Interprets anything that's not @in@ as
 --   'Out'.
@@ -96,8 +152,8 @@ directionSet (HWID i) d = writeFile (gpioDirection i) $ show d ++ lf
 --   Fails if the pin wasn't exported first.
 --
 --   TODO: Check whether this fails when the pin is in write mode
-directionGet :: HWID -> IO PinDirection
-directionGet (HWID i) = toPinDirection <$> readFile (gpioDirection i)
+getDirection :: HWID -> IO PinDirection
+getDirection (HWID i) = toPinDirection <$> readFile (gpioDirection i)
 
 
 

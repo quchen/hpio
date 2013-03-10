@@ -1,7 +1,5 @@
 module System.Hardware.GPIO (
-        module ReExport
+        module System.Hardware.GPIO.HighLevel
 ) where
 
-import System.Hardware.GPIO.LowLevel as ReExport
-import System.Hardware.GPIO.Pin      as ReExport
-import System.Hardware.GPIO.HWID     as ReExport
+import System.Hardware.GPIO.HighLevel
