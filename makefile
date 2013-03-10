@@ -1,4 +1,4 @@
-EXENAME = hstest
+EXENAME = main
 
 all :
 	ghc -O --make -i:. -o $(EXENAME) Main.hs

@@ -1,38 +1,105 @@
 module Morse (
-      morse
+      main
 ) where
 
+import Control.Monad
+import Control.Monad.Trans
+import Control.Monad.Trans.Reader
+import Data.List
+import System.IO
+import Data.Char (toLower)
 import Control.Concurrent
 import System.Hardware.GPIO
 
 
 timeDit      = 3 * 10^5
-timeDah      = 6 * 10^5
+timeDah      = 9 * 10^5
 atomSpacer   = 2 * 10^5
-letterSpacer = 10^6
+letterSpacer = 1 * 10^6
 wordSpacer   = 2 * 10^6
 
-morse :: HWID -> String -> IO ()
-morse hwid (x:xs) = morseChar x >> morse hwid xs
-      where morseChar x | x `elem` ['a'..'z'] = morseLetter hwid x
-                        | x == ' '            = threadDelay wordSpacer
-                        | otherwise           = return ()
-morse _ [] = return ()
 
-morseLetter :: HWID -> Char -> IO ()
-morseLetter hwid char = do putStrLn $ char : " = " ++ showMorseLetter (toMorse char)
-                           mapM_ (morseAtom hwid) $ toMorse char
-                           threadDelay letterSpacer
+main = do let hwid = HWID 4
+          h <- export hwid
+          directionSet hwid Out
+          morseLoop h
+          unexport hwid h
 
-morseAtom :: HWID -> MorseAtom -> IO ()
-morseAtom hwid Dit = blink hwid timeDit >> threadDelay atomSpacer
-morseAtom hwid dah = blink hwid timeDah >> threadDelay atomSpacer
 
--- Makes a pin blink for some time in milliseconds
-blink :: HWID -> Int -> IO ()
-blink hwid ms = do valueSet hwid Hi
-                   threadDelay ms
-                   valueSet hwid Lo
+
+morseLoop h = do putStr "Enter message: "
+                 hFlush stdout
+                 msg <- getLine
+                 unless (null msg) $ do morse h msg
+                                        morseLoop h
+
+type MorseCommand = ReaderT ValueHandle IO ()
+
+-- | Synonym for 'threadDelay'.
+pause :: Int -> IO ()
+pause = threadDelay
+
+-- | Morses a string to a GPIO pin represented by a 'ValueHandle'.
+morse :: ValueHandle -> String -> IO ()
+morse h message = void $ runReaderT (morseString message) h
+
+-- | Morse command (blinks and pauses) of a string.
+morseString :: String -> MorseCommand
+morseString message = morsePaused
+      where -- Read this where clause like an imperative program: data flow is
+            -- from top to bottom.
+
+            allowedChars = ' ' : ['a'..'z']
+
+            messageWords :: [String]
+            messageWords = words .
+                       filter (`elem` allowedChars) .
+                       map toLower $
+                       message
+
+            -- List of words to morse
+            prepareMorse :: [[MorseCommand]]
+            prepareMorse = (map.map) morseLetter messageWords
+
+            wordPause :: MorseCommand
+            wordPause = lift $ pause wordSpacer
+
+            morsePaused :: MorseCommand
+            morsePaused = sequence_ $ intercalate [wordPause] prepareMorse
+
+-- | Morse command (blinks and pauses) of a char.
+morseLetter :: Char -> MorseCommand
+morseLetter char = morsePaused
+      where -- Read this where clause like an imperative program: data flow is
+            -- from top to bottom.
+
+            -- Convert char to morse string
+            morseChar :: [MorseAtom]
+            morseChar = toMorse char
+
+            -- Builds a list of morse commands to be issued, but doesn't
+            -- actually do anything.
+            prepareMorse :: [MorseCommand]
+            prepareMorse = map morseAtom morseChar
+
+            -- | ReaderT version of the letter spacer
+            letterPause :: MorseCommand
+            letterPause = lift $ pause letterSpacer
+
+            -- Intersperse pauses, and run all the actions
+            morsePaused :: MorseCommand
+            morsePaused = sequence_ $ intersperse letterPause prepareMorse
+
+
+-- | Morse command for a single atom (dit/dah).
+morseAtom :: MorseAtom -> ReaderT ValueHandle IO ()
+morseAtom atom = do h <- ask
+                    let time Dit = timeDit
+                        time Dah = timeDah
+                        blink = do valueSet h Hi
+                                   pause $ time atom
+                                   valueSet h Lo
+                    lift blink
 
 data MorseAtom = Dit | Dah
 
@@ -41,6 +108,12 @@ instance Show MorseAtom where
       show Dah = "-"
 
 type MorseLetter = [MorseAtom]
+
+-- | Converts a 'MorseLetter' to a readable string.
+--
+--   > showMorseLetter $ toMorse 'a' = ".-"
+--   > showMorseLetter $ toMorse 'b' = "-..."
+--   > showMorseLetter $ toMorse 'c' = "-.-."
 
 showMorseLetter :: MorseLetter -> String
 showMorseLetter c = c >>= show

@@ -1,10 +1,13 @@
 module System.Hardware.GPIO.Pin (
         PinValue(..)
       , PinDirection(..)
+      , ValueHandle(..)
 
       , toPinDirection
       , toPinValue
 ) where
+
+import System.IO
 
 data PinValue = Lo | Hi
       deriving (Eq, Ord)
@@ -27,3 +30,6 @@ toPinDirection _    = Out
 -- | Interpret anything not starting with '1' as Lo
 toPinValue ('1':_) = Hi
 toPinValue _       = Lo
+
+-- | Wrapper around a pointer to a currently exported pin's @value@ file.
+newtype ValueHandle = ValueHandle Handle
