@@ -28,10 +28,10 @@ module System.Hardware.GPIO.LowLevel (
 
 
 
-import Text.Printf
 import System.IO
 import Data.Functor
 import System.Directory
+import Control.Monad
 import System.FilePath
 import Control.Exception (catch, SomeException)
 import Prelude hiding (catch)
@@ -95,7 +95,8 @@ exists (HWID i) = doesDirectoryExist $ gpioDirectory i
 --   TODO: This does not check whether there's still an open ValueHandle to the
 --         value file. Is this a problem?
 unexport :: HWID -> ValueHandle -> IO ()
-unexport (HWID i) (ValueHandle h) = do hClose h
+unexport (HWID i) (ValueHandle h) = do isOpen <- hIsOpen h
+                                       when isOpen $ hClose h
                                        writeFile gpioUnexport $ show i ++ "\n"
 
 
@@ -103,9 +104,7 @@ unexport (HWID i) (ValueHandle h) = do hClose h
 --   This can be useful as part of bracketing, in order to deallocate the pin
 --   no matter what.
 nuke :: HWID -> ValueHandle -> IO ()
-nuke (HWID i) (ValueHandle h) = do ignoreException $ hClose h
-                                   ignoreException $ writeFile gpioUnexport $
-                                                     show i ++ "\n"
+nuke hwid h  = ignoreException $ unexport hwid h
       where ignoreException f = catch f doNothing
             doNothing :: SomeException -> IO ()
             doNothing _ = return ()

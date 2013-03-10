@@ -59,7 +59,7 @@ construct hwid dir = do assertExists False hwid
 
 -- | Deallocates a pin. Requires the pin to exist.
 destruct :: HiPin -> IO ()
-destruct pin@(HiPin hwid h) = assertExists True hwid >> Low.unexport hwid h
+destruct (HiPin hwid h) = assertExists True hwid >> Low.unexport hwid h
 
 
 
