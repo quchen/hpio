@@ -50,7 +50,7 @@ gpioUnexport :: String
 gpioUnexport = gpio </> "unexport"
 -- | Path to the GPIO directory of a pin
 gpioDirectory :: Int -> String
-gpioDirectory i = gpio </> gpio ++ show i
+gpioDirectory i = gpio </> "gpio" ++ show i
 -- | Path to the value handler of a pin
 gpioValue :: Int -> String
 gpioValue i = gpioDirectory i </> "value"
@@ -83,7 +83,7 @@ absorb (HWID i) = ValueHandle <$> openFile (gpioValue i) ReadWriteMode
 --   this is done on an OS level, and there is no test whether the pin may have
 --   been allocated by some other program.
 exists :: HWID -> IO Bool
-exists (HWID i) = doesFileExist $ gpioDirectory i
+exists (HWID i) = doesDirectoryExist $ gpioDirectory i
 
 
 

@@ -78,9 +78,9 @@ exists = Low.exists
 -- | Asserts that a certain pin should/should not exist.
 assertExists :: Bool -> HWID -> IO ()
 assertExists should hwid = do
-      e <- exists hwid
-      when (e && not should) $ error $ "Pin " ++ show hwid ++ " already exists"
-      when (not e && should) $ error $ "Pin " ++ show hwid ++ " does not exist"
+      ex <- exists hwid
+      when (ex && not should) $ error $ "Pin " ++ show hwid ++ " already exists"
+      when (not ex && should) $ error $ "Pin " ++ show hwid ++ " does not exist"
 
 
 

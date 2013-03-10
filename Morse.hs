@@ -27,9 +27,8 @@ wordSpacer   = timePrefactor * 20
 
 
 main :: IO ()
-main = bracket (construct (HWID 4) Out)
-               nuke
-               morseLoop
+main = bracket makePin nuke morseLoop
+      where makePin = construct (HWID 4) Out
 
 
 
