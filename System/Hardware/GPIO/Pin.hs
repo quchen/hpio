@@ -24,10 +24,12 @@ instance Show PinDirection where
       show In  = "in"
 
 -- | Interpret anything but "in" as In.
+toPinDirection :: [Char] -> PinDirection
 toPinDirection "in" = In
 toPinDirection _    = Out
 
 -- | Interpret anything not starting with '1' as Lo
+toPinValue :: [Char] -> PinValue
 toPinValue ('1':_) = Hi
 toPinValue _       = Lo
 

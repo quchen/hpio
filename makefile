@@ -1,4 +1,4 @@
-EXENAME = main
+EXENAME = Main
 
 all :
 	ghc -O --make -i:. -o $(EXENAME) Main.hs
