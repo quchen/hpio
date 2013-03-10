@@ -69,8 +69,7 @@ unexport (HWID i) (ValueHandle h) = do hClose h
 --
 --   TODO: Check whether this fails when the pin is in read mode
 valueSet :: ValueHandle -> PinValue -> IO ()
-valueSet (ValueHandle h) value = do seekBegin h
-                                    hPrint h $ show value
+valueSet (ValueHandle h) value = seekBegin h >> hPrint h value >> hFlush h
 
 
 -- | Reads the value of a GPIO pin. Interprets anything that's not starting with

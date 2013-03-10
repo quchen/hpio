@@ -7,16 +7,17 @@ import Control.Monad.Trans
 import Control.Monad.Trans.Reader
 import Data.List
 import System.IO
+import Text.Printf
 import Data.Char (toLower)
 import Control.Concurrent
 import System.Hardware.GPIO
 
 
-timeDit      = 3 * 10^5
-timeDah      = 9 * 10^5
-atomSpacer   = 2 * 10^5
-letterSpacer = 1 * 10^6
-wordSpacer   = 2 * 10^6
+timeDit      =  3 * 10^5
+timeDah      =  9 * 10^5
+atomSpacer   =  2 * 10^5
+letterSpacer = 10 * 10^5
+wordSpacer   = 20 * 10^5
 
 
 main = do let hwid = HWID 4
@@ -41,7 +42,7 @@ pause = threadDelay
 
 -- | Morses a string to a GPIO pin represented by a 'ValueHandle'.
 morse :: ValueHandle -> String -> IO ()
-morse h message = void $ runReaderT (morseString message) h
+morse h message = runReaderT (morseString message) h
 
 -- | Morse command (blinks and pauses) of a string.
 morseString :: String -> MorseCommand
@@ -49,29 +50,43 @@ morseString message = morsePaused
       where -- Read this where clause like an imperative program: data flow is
             -- from top to bottom.
 
-            allowedChars = ' ' : ['a'..'z']
+            allowedChars = ['a'..'z']
 
             messageWords :: [String]
-            messageWords = words .
-                       filter (`elem` allowedChars) .
-                       map toLower $
-                       message
+            messageWords = map (map toLower . filter (`elem` allowedChars)) .
+                           words $
+                           message
 
             -- List of words to morse
-            prepareMorse :: [[MorseCommand]]
-            prepareMorse = (map.map) morseLetter messageWords
+            prepareMorse :: [MorseCommand]
+            prepareMorse = map morseWord messageWords
 
             wordPause :: MorseCommand
             wordPause = lift $ pause wordSpacer
 
             morsePaused :: MorseCommand
-            morsePaused = sequence_ $ intercalate [wordPause] prepareMorse
+            morsePaused = sequence_ $ intersperse wordPause prepareMorse
+
+morseWord :: String -> MorseCommand
+morseWord message = morsePaused
+      where -- Read this where clause like an imperative program: data flow is
+            -- from top to bottom.
+
+            prepareMorse :: [MorseCommand]
+            prepareMorse = map morseLetter message
+
+            letterPause :: MorseCommand
+            letterPause = lift $ pause letterSpacer
+
+            morsePaused = sequence_ $ intersperse letterPause prepareMorse
 
 -- | Morse command (blinks and pauses) of a char.
 morseLetter :: Char -> MorseCommand
-morseLetter char = morsePaused
+morseLetter char = printLetter >> morsePaused
       where -- Read this where clause like an imperative program: data flow is
             -- from top to bottom.
+
+            printLetter = lift $ printf "%c = %s\n" char (showMorseLetter $ toMorse char)
 
             -- Convert char to morse string
             morseChar :: [MorseAtom]
@@ -83,12 +98,12 @@ morseLetter char = morsePaused
             prepareMorse = map morseAtom morseChar
 
             -- | ReaderT version of the letter spacer
-            letterPause :: MorseCommand
-            letterPause = lift $ pause letterSpacer
+            atomPause :: MorseCommand
+            atomPause = lift $ pause atomSpacer
 
             -- Intersperse pauses, and run all the actions
             morsePaused :: MorseCommand
-            morsePaused = sequence_ $ intersperse letterPause prepareMorse
+            morsePaused = sequence_ $ intersperse atomPause prepareMorse
 
 
 -- | Morse command for a single atom (dit/dah).
