@@ -61,8 +61,8 @@ morse pin message = runReaderT (morseString message) pin
 --   intersperses pauses, and then sequences the whole thing to become one large
 --   morsing action.
 --
---   Conceptually, this is a typechecking version of
---   'sequence_ . intersperse spacer . map action'.
+--   Read this as a typechecking version of
+--   @sequence_ . intersperse spacer . map action@.
 combineMorses :: (a -> MorseCommand) -> [a] -> Int -> MorseCommand
 combineMorses action list spacer = sequence_ $ intersperse pauses morses
       where morses = map action list
@@ -99,17 +99,14 @@ morseAtom atom = do pin <- ask
                     lift $ blink pin atom
 
 blink :: HiPin -> MorseAtom -> IO ()
-blink pin atom = do let time Dit = timeDit
-                        time Dah = timeDah
-                    setValue pin Hi
-                    pause $ time atom
+blink pin atom = do setValue pin Hi
+                    pause $ case atom of Dit -> timeDit
+                                         Dah -> timeDah
                     setValue pin Lo
 
 
 
 data MorseAtom = Dit | Dah
-
-
 
 instance Show MorseAtom where
       show Dit = "."

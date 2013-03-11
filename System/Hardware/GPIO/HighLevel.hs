@@ -1,5 +1,18 @@
--- | The low high part of the library unifies properties of a pin in a single
+-- | The high level part of the library unifies properties of a pin in a single
 --   data type.
+--
+--   The following program initializes pin #4 and turns it on for a second:
+--
+--   > import Control.Concurrent (threadDelay)
+--   > import Control.Exception (bracket)
+--   >
+--   > blink :: HWID -> IO ()
+--   > blink hwid = bracket (construct hwid Out) nuke $ \pin ->
+--   >       do setValue pin Hi
+--   >          threadDelay $ 10^6
+--   >          setValue pin Lo
+--   >
+--   > main = blink $ HWID 4
 
 -- TODO: Remove calls to error and add proper exception handling.
 --       => IO errors, Either, Maybe?
@@ -20,6 +33,7 @@ module System.Hardware.GPIO.HighLevel (
       , setDirection
       , getDirection
 
+      -- * Data types
       , HWID(..)
       , PinDirection(..)
       , PinValue(..)
@@ -27,24 +41,22 @@ module System.Hardware.GPIO.HighLevel (
 
 ) where
 
+
+
+import qualified System.Hardware.GPIO.LowLevel as Low
 import System.Hardware.GPIO.LowLevel ( HWID
                                      , ValueHandle
                                      , PinDirection(..)
                                      , PinValue(..)
                                      )
-import qualified System.Hardware.GPIO.LowLevel as Low
-
-
-
 import Control.Monad
 
 
 
--- | 'HiPin' (for **Hi**gh level **Pin**) unifies 'HWID', value handle and pin
---   direction of a low-level pin.
-data HiPin = HiPin { hiPinHWID :: HWID
-                   , hiPinValueH :: ValueHandle
-                   }
+-- | 'HiPin' (for /high level pin/) unifies the hardware ID and a handle to the
+--   value field of that pin.
+--
+data HiPin = HiPin HWID ValueHandle
 
 -- | Creates a pin with the specified 'HWID' and 'Direction'.
 --
@@ -63,13 +75,18 @@ destruct (HiPin hwid h) = assertExists True hwid >> Low.unexport hwid h
 
 
 
--- | Deallocates a pin whether or not it exists. Issues no exceptions.
+-- | Deallocates a pin whether or not it exists. This is useful in conjunction
+--   with @bracket@ to deallocate a pin at the end no matter what.
+--
+--   > bracket (construct (HWID 0) Out)
+--   >         nuke
+--   >         doStuff
 nuke :: HiPin -> IO ()
 nuke (HiPin hwid h) = Low.nuke hwid h
 
 
 
--- | Checks whether a pin is currently exported
+-- | Checks whether the pin with a certain 'HWID' is currently exported.
 exists :: HWID -> IO Bool
 exists = Low.exists
 
@@ -79,16 +96,17 @@ exists = Low.exists
 assertExists :: Bool -> HWID -> IO ()
 assertExists should hwid = do
       ex <- exists hwid
-      when (ex && not should) $ error $ "Pin " ++ show hwid ++ " already exists"
-      when (not ex && should) $ error $ "Pin " ++ show hwid ++ " does not exist"
+      case (ex, should) of
+            (True, False) -> error $ "Pin " ++ show hwid ++ " already exists"
+            (False, True) -> error $ "Pin " ++ show hwid ++ " does not exist"
+            _otherwise    -> return ()
 
 
 
 -- | Creates a pin from one that is already open in the file system.
 --
 --   Note that using this can lead to two programs manipulating the same pin,
---   which could be a big cause of trouble. Only use this if you know what
---   you're doing!
+--   which is potentially troublesome. Be careful using this!
 absorb :: HWID -> IO HiPin
 absorb hwid = do assertExists True hwid
                  h <- Low.absorb hwid
@@ -96,7 +114,7 @@ absorb hwid = do assertExists True hwid
 
 
 
--- | Updates the value of a pin.
+-- | Updates the value of a pin, given its direction is 'Out'.
 setValue :: HiPin -> PinValue -> IO ()
 setValue pin@(HiPin hwid h) v = do assertExists True hwid
                                    dir <- getDirection pin
@@ -107,7 +125,7 @@ setValue pin@(HiPin hwid h) v = do assertExists True hwid
 
 
 
--- | Reads the value of a pin.
+-- | Reads the value of a pin, given its direction is 'In'.
 getValue :: HiPin -> IO PinValue
 getValue pin@(HiPin hwid h) = do assertExists True hwid
                                  dir <- getDirection pin
@@ -119,6 +137,9 @@ getValue pin@(HiPin hwid h) = do assertExists True hwid
 
 
 -- | Updates the direction of a pin.
+--
+--   Note that the underlying pin's value handle is created in 'ReadWriteMode'
+--   already, so there is no need to change the handle by this function.
 setDirection :: HiPin -> PinDirection -> IO ()
 setDirection (HiPin hwid _) dir = do assertExists True hwid
                                      Low.setDirection hwid dir
@@ -126,6 +147,9 @@ setDirection (HiPin hwid _) dir = do assertExists True hwid
 
 
 -- | Reads the direction of a pin.
+--
+--   Note that the underlying pin's value handle is created in 'ReadWriteMode'
+--   already, so there is no need to change the handle by this function.
 getDirection :: HiPin -> IO PinDirection
 getDirection (HiPin hwid _) = do assertExists True hwid
                                  Low.getDirection hwid

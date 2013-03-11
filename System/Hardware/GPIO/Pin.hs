@@ -23,7 +23,7 @@ instance Show PinDirection where
       show Out = "out"
       show In  = "in"
 
--- | Interpret anything but 'in' as In.
+-- | Interpret anything but 'in' as In
 toPinDirection :: String -> PinDirection
 toPinDirection "in" = In
 toPinDirection _    = Out

@@ -1,8 +1,7 @@
 -- | The low level part of the library handles conncetions to the GPIO pins
 --   on an OS level, i.e. it communicates with /sys/class/GPIO. As it basically
 --   is an abstraction for "echo 1 > /sys/class/gpio/export" type commands, it
---   makes no attempt at handling bad input beyond what the Haskell type system
---   provides.
+--   makes no attempt at handling exceptions.
 
 module System.Hardware.GPIO.LowLevel (
 
@@ -70,7 +69,9 @@ export hwid@(HWID i) = do writeFile gpioExport $ show i ++ "\n"
 
 
 
--- | Creates a handle to the value of an already existing pin.
+-- | Creates a handle to the value of an already existing pin. The handle is
+--   opened in @ReadWriteMode@, so there is no handle-level distinction between
+--   input and output pins in the lowlevel interface.
 --
 --   Be careful not to absorb a pin created by some other program, or the
 --   interference may be nasty!
@@ -101,12 +102,12 @@ unexport (HWID i) (ValueHandle h) = do isOpen <- hIsOpen h
 
 
 -- | Deallocates a pin whether or not it exists; does not issue any exceptions.
---   This can be useful as part of bracketing, in order to deallocate the pin
---   no matter what.
+--
+--   The high level interface uses this to implement its version of nuke, which
+--   is useful as part of bracketing (deallocate pin whatever happens).
 nuke :: HWID -> ValueHandle -> IO ()
-nuke hwid h  = ignoreException $ unexport hwid h
-      where ignoreException f = catch f doNothing
-            doNothing :: SomeException -> IO ()
+nuke hwid h  = unexport hwid h `catch` doNothing
+      where doNothing :: SomeException -> IO ()
             doNothing _ = return ()
 -- TODO: The catchall above may not be the ideal solution; instead, possible
 --       exceptions should be ignored individually. See the docs for further
@@ -120,7 +121,7 @@ nuke hwid h  = ignoreException $ unexport hwid h
 --
 --   TODO: Check whether this fails when the pin is in read mode
 setValue :: ValueHandle -> PinValue -> IO ()
-setValue (ValueHandle h) value = seekBegin h >> hPrint h value >> hFlush h
+setValue (ValueHandle h) value = seek0 h >> hPrint h value >> hFlush h
 
 
 
@@ -131,7 +132,7 @@ setValue (ValueHandle h) value = seekBegin h >> hPrint h value >> hFlush h
 --
 --   TODO: Check whether this fails when the pin is in write mode
 getValue :: ValueHandle -> IO PinValue
-getValue (ValueHandle h) = seekBegin h >> toPinValue <$> hGetContents h
+getValue (ValueHandle h) = seek0 h >> toPinValue <$> hGetContents h
 
 
 
@@ -156,6 +157,6 @@ getDirection (HWID i) = toPinDirection <$> readFile (gpioDirection i)
 
 
 
--- | Makes the handle point to the beginning of the file
-seekBegin :: Handle -> IO ()
-seekBegin h = hSeek h AbsoluteSeek 0
+-- | Seek to the beginning of the file
+seek0 :: Handle -> IO ()
+seek0 h = hSeek h AbsoluteSeek 0
