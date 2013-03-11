@@ -38,6 +38,7 @@ module System.Hardware.GPIO.HighLevel (
       , PinDirection(..)
       , PinValue(..)
       , HiPin(..)
+      , PinsRef
 
 ) where
 
@@ -45,18 +46,28 @@ module System.Hardware.GPIO.HighLevel (
 
 import qualified System.Hardware.GPIO.LowLevel as Low
 import System.Hardware.GPIO.LowLevel ( HWID
+                                     , UID
                                      , ValueHandle
                                      , PinDirection(..)
                                      , PinValue(..)
                                      )
 import Control.Monad
+import Data.IORef
+import Data.Map (Map)
 
 
 
 -- | 'HiPin' (for /high level pin/) unifies the hardware ID and a handle to the
 --   value field of that pin.
 --
-data HiPin = HiPin HWID ValueHandle
+data HiPin = HiPin { hiPinHWID :: HWID
+                   , hiPinValueH :: ValueHandle
+                   }
+
+
+-- | Unification of multiple pins. Will also translate between user and hardware
+--   IDs.
+type PinsRef a = IORef (Map (UID a) HiPin)
 
 -- | Creates a pin with the specified 'HWID' and 'Direction'.
 --

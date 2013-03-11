@@ -20,7 +20,7 @@ module System.Hardware.GPIO.LowLevel (
       , setDirection
       , getDirection
 
-      , module System.Hardware.GPIO.HWID
+      , module System.Hardware.GPIO.PinID
       , module System.Hardware.GPIO.Pin
 
 ) where
@@ -35,8 +35,8 @@ import System.FilePath
 import Control.Exception (catch, SomeException)
 import Prelude hiding (catch)
 
-import System.Hardware.GPIO.HWID
 import System.Hardware.GPIO.Pin
+import System.Hardware.GPIO.PinID
 
 
 gpio :: String
