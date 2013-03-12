@@ -1,7 +1,6 @@
--- TODO module description, tutorial
+-- | TODO module description, tutorial
+--
+-- Brief outline: import either HighLevel or Architecture
 
 module System.Hardware.GPIO (
-        module System.Hardware.GPIO.HighLevel
 ) where
-
-import System.Hardware.GPIO.HighLevel

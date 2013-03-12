@@ -1,0 +1,68 @@
+#define DEPENDS_ON  [color = orange, labelfontcolor = orange]
+#define EXPORTS  [color = orangered, labelfontcolor = orangered]
+#define API  [color = green4, labelfontcolor = green4]
+
+// greenyellow
+// orangered
+// orange
+// green4
+
+digraph G {
+
+      node [shape = box, color = gray];
+
+      rankdir = TB;
+      compound = true;
+
+      subgraph cluster_legend {
+
+            label = "Legend";
+            pencolor = transparent;
+
+            // Depends
+            dependsA [label = "A depends on"];
+            dependsB [label = "B"];
+            dependsA -> dependsB DEPENDS_ON;
+
+            // Reexports
+            exportsA [label = "A reexports"];
+            exportsB [label = "B"];
+            exportsA -> exportsB EXPORTS;
+
+            publicAPI [label="Public\nAPI"] API;
+      }
+
+      subgraph cluster_architectures {
+            color = gray;
+            node [style = dashed, shape = record];
+            Board;
+            DUMMY_architectures [ style = invis
+                                , shape = point
+                                ];
+            Terminal;
+      }
+
+      edge DEPENDS_ON;
+
+      HighLevel;
+      Pin;
+      PinID;
+
+      LowLevel -> Pin;
+      LowLevel -> PinID;
+
+      HighLevel -> LowLevel;
+
+      Architecture -> HighLevel;
+      Architecture -> PinID;
+      Architecture -> DUMMY_architectures
+                        [ lhead = cluster_architectures ];
+
+      GPIO API;
+      GPIO -> Architecture EXPORTS;
+      GPIO -> HighLevel EXPORTS;
+      GPIO -> PinID EXPORTS;
+
+
+
+}

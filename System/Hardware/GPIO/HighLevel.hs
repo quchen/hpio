@@ -45,12 +45,9 @@ module System.Hardware.GPIO.HighLevel (
 
 
 import qualified System.Hardware.GPIO.LowLevel as Low
-import System.Hardware.GPIO.LowLevel ( HWID
-                                     , UID
-                                     , ValueHandle
-                                     , PinDirection(..)
-                                     , PinValue(..)
-                                     )
+import System.Hardware.GPIO.PinID
+import System.Hardware.GPIO.Pin
+
 import Control.Monad
 import Data.IORef
 import Data.Map (Map)

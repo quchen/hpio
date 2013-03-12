@@ -1,6 +1,6 @@
 module Main where
 
-import System.Hardware.GPIO.Architecture
+import System.Hardware.GPIO
 
 -- #############################################################################
 -- ## MORSE PROGRAM ############################################################

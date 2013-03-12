@@ -11,11 +11,24 @@ import System.Hardware.GPIO.PinID
 import Text.Printf
 import Data.IORef
 import qualified Data.Map as Map
+import Data.Functor
+import Control.Monad
 
-addPin :: (Show u, Ord u)
-       => PinsRef u
+
+destruct :: PinsRef uid -> IO ()
+destruct pinsRef = void $ Map.map High.destruct <$> readIORef pinsRef
+
+
+
+nuke :: PinsRef uid -> IO ()
+nuke pinsRef = void $ Map.map High.nuke <$> readIORef pinsRef
+
+
+
+addPin :: (Show uid, Ord uid)
+       => PinsRef uid
        -> HWID
-       -> UID u
+       -> UID uid
        -> PinDirection
        -> IO ()
 addPin pinsRef hwid uid dir = do
@@ -25,9 +38,15 @@ addPin pinsRef hwid uid dir = do
             else do newPin <- High.construct hwid dir
                     writeIORef pinsRef $ Map.insert uid newPin pins
 
-removePin :: (Show u, Ord u)
-          => PinsRef u
-          -> UID u
+addHiPin :: (Show uid, Ord uid)
+         => HiPin
+         -> UID uid
+         -> IO ()
+addHiPin = undefined -- TODO
+
+removePin :: (Show uid, Ord uid)
+          => PinsRef uid
+          -> UID uid
           -> IO ()
 removePin pinsRef uid = do
       pins <- readIORef pinsRef
@@ -38,9 +57,9 @@ removePin pinsRef uid = do
                     writeIORef pinsRef $ Map.delete uid pins
             else error $ printf "Pin %s does not exist" (show uid)
 
-setPinValue :: (Show u, Ord u)
-            => PinsRef u
-            -> UID u
+setPinValue :: (Show uid, Ord uid)
+            => PinsRef uid
+            -> UID uid
             -> PinValue
             -> IO ()
 setPinValue pinsRef uid value = do
@@ -49,9 +68,9 @@ setPinValue pinsRef uid value = do
             Just hiPin -> High.setValue hiPin value
             Nothing -> error $ printf "Pin %s does not exist" (show uid)
 
-getPinValue :: (Show u, Ord u)
-            => PinsRef u
-            -> UID u
+getPinValue :: (Show uid, Ord uid)
+            => PinsRef uid
+            -> UID uid
             -> IO PinValue
 getPinValue pinsRef uid = do
       pins <- readIORef pinsRef
@@ -59,9 +78,9 @@ getPinValue pinsRef uid = do
             Just hiPin -> High.getValue hiPin
             Nothing -> error $ printf "Pin %s does not exist" (show uid)
 
-setPinDirection :: (Show u, Ord u)
-                => PinsRef u
-                -> UID u
+setPinDirection :: (Show uid, Ord uid)
+                => PinsRef uid
+                -> UID uid
                 -> PinDirection
                 -> IO ()
 setPinDirection pinsRef uid dir = do
@@ -70,9 +89,9 @@ setPinDirection pinsRef uid dir = do
             Just hiPin -> High.setDirection hiPin dir
             Nothing -> error $ printf "Pin %s does not exist" (show uid)
 
-getPinDirection :: (Show u, Ord u)
-                => PinsRef u
-                -> UID u
+getPinDirection :: (Show uid, Ord uid)
+                => PinsRef uid
+                -> UID uid
                 -> IO PinDirection
 getPinDirection pinsRef uid = do
       pins <- readIORef pinsRef

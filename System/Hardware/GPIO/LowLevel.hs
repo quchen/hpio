@@ -20,9 +20,6 @@ module System.Hardware.GPIO.LowLevel (
       , setDirection
       , getDirection
 
-      , module System.Hardware.GPIO.PinID
-      , module System.Hardware.GPIO.Pin
-
 ) where
 
 
@@ -106,9 +103,13 @@ unexport (HWID i) (ValueHandle h) = do isOpen <- hIsOpen h
 --   The high level interface uses this to implement its version of nuke, which
 --   is useful as part of bracketing (deallocate pin whatever happens).
 nuke :: HWID -> ValueHandle -> IO ()
-nuke hwid h  = unexport hwid h `catch` doNothing
-      where doNothing :: SomeException -> IO ()
-            doNothing _ = return ()
+nuke (HWID i) (ValueHandle h)  = do
+      let doNothing :: SomeException -> IO ()
+          doNothing _ = return ()
+          close = hClose h
+          unexport' = writeFile gpioUnexport $ show i ++ "\n"
+      hClose h `catch` doNothing
+      unexport' `catch` doNothing
 -- TODO: The catchall above may not be the ideal solution; instead, possible
 --       exceptions should be ignored individually. See the docs for further
 --       information:

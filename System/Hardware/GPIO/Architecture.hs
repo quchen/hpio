@@ -1,7 +1,11 @@
 -- | Unify multiple pins
+--
+-- TODO: Absorb a high level pin into a PinBox
 
 module System.Hardware.GPIO.Architecture
 where
+
+
 
 import System.Hardware.GPIO.HighLevel ( PinValue
                                       , PinDirection
@@ -9,11 +13,18 @@ import System.Hardware.GPIO.HighLevel ( PinValue
                                       )
 import System.Hardware.GPIO.PinID
 
+
+
 import qualified System.Hardware.GPIO.Architecture.Board as Board
 import qualified System.Hardware.GPIO.Architecture.Terminal as Terminal
 
+
+
 import Data.Map as Map
 import Data.IORef
+import Data.Functor
+
+
 
 -- | The Architecture type is used to provide a common interface for multiple
 --   pins taken together. Apart from unification, it translates a custom ID to
@@ -21,59 +32,93 @@ import Data.IORef
 data Architecture = Board
                   | Terminal
 
+-- | A 'PinBox' stores the architecture alongside the pins allocated on it.
+data PinBox uid = PinBox Architecture (PinsRef uid)
 
-create :: IO (PinsRef a)
-create = newIORef Map.empty
 
-addPin :: (Show u, Ord u)
-       => Architecture
-       -> PinsRef u
+
+-- | Initializes a new 'PinBox' using the specified architecture.
+construct :: Architecture -> IO (PinBox uid)
+construct arch = PinBox arch <$> newIORef Map.empty
+
+
+-- | Destruct the board, deallocating all open pins.
+destruct :: PinBox uid -> IO ()
+destruct (PinBox Board    pinsRef) = Board.destruct pinsRef
+destruct (PinBox Terminal pinsRef) = Terminal.destruct pinsRef
+
+
+
+-- | Nuke the board, deallocating all open pins, disregarding exceptions.
+--   Useful for bracketing to ressources are released no matter what.
+nuke :: PinBox uid -> IO ()
+nuke (PinBox Board    pinsRef) = Board.nuke pinsRef
+nuke (PinBox Terminal pinsRef) = Terminal.nuke pinsRef
+
+
+
+
+addPin :: (Show uid, Ord uid)
+       => PinBox uid
        -> HWID
-       -> UID u
+       -> UID uid
        -> PinDirection
        -> IO ()
-addPin Board = Board.addPin
-addPin Terminal = Terminal.addPin
+addPin (PinBox Board    pinsRef) = Board.addPin pinsRef
+addPin (PinBox Terminal pinsRef) = Terminal.addPin pinsRef
 
-removePin :: (Show u, Ord u)
-          => Architecture
-          -> PinsRef u
-          -> UID u
+
+addHiPin :: (Show uid, Ord uid)
+         => PinBox uid
+         -> HiPin
+         -> UID uid
+         -> IO ()
+addPin (PinBox Board    pinsRef) = Board.addHiPin pinsRef
+addPin (PinBox Terminal pinsRef) = Terminal.addHiPin pinsRef
+
+
+
+removePin :: (Show uid, Ord uid)
+          => PinBox uid
+          -> UID uid
           -> IO ()
-removePin Board = Board.removePin
-removePin Terminal = Terminal.removePin
+removePin (PinBox Board    pinsRef) = Board.removePin pinsRef
+removePin (PinBox Terminal pinsRef) = Terminal.removePin pinsRef
 
 
-setPinValue :: (Show u, Ord u)
-            => Architecture
-            -> PinsRef u
-            -> UID u
+
+setPinValue :: (Show uid, Ord uid)
+            => PinBox uid
+            -> UID uid
             -> PinValue
             -> IO ()
-setPinValue Board = Board.setPinValue
-setPinValue Terminal = Terminal.setPinValue
+setPinValue (PinBox Board    pinsRef) = Board.setPinValue pinsRef
+setPinValue (PinBox Terminal pinsRef) = Terminal.setPinValue pinsRef
 
-getPinValue :: (Show u, Ord u)
-            => Architecture
-            -> PinsRef u
-            -> UID u
+
+
+getPinValue :: (Show uid, Ord uid)
+            => PinBox uid
+            -> UID uid
             -> IO PinValue
-getPinValue Board = Board.getPinValue
-getPinValue Terminal = Terminal.getPinValue
+getPinValue (PinBox Board    pinsRef) = Board.getPinValue pinsRef
+getPinValue (PinBox Terminal pinsRef) = Terminal.getPinValue pinsRef
 
-setPinDirection :: (Show u, Ord u)
-                => Architecture
-                -> PinsRef u
-                -> UID u
+
+
+setPinDirection :: (Show uid, Ord uid)
+                => PinBox uid
+                -> UID uid
                 -> PinDirection
                 -> IO ()
-setPinDirection Board = Board.setPinDirection
-setPinDirection Terminal = Terminal.setPinDirection
+setPinDirection (PinBox Board    pinsRef) = Board.setPinDirection pinsRef
+setPinDirection (PinBox Terminal pinsRef) = Terminal.setPinDirection pinsRef
 
-getPinDirection :: (Show u, Ord u)
-                => Architecture
-                -> PinsRef u
-                -> UID u
+
+
+getPinDirection :: (Show uid, Ord uid)
+                => PinBox uid
+                -> UID uid
                 -> IO PinDirection
-getPinDirection Board = Board.getPinDirection
-getPinDirection Terminal = Terminal.getPinDirection
+getPinDirection (PinBox Board    pinsRef) = Board.getPinDirection pinsRef
+getPinDirection (PinBox Terminal pinsRef) = Terminal.getPinDirection pinsRef

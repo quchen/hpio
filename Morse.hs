@@ -12,23 +12,23 @@ import Data.Char (toLower)
 import Control.Concurrent
 import Control.Exception
 
-import System.Hardware.GPIO
+import System.Hardware.GPIO.HighLevel
 
 
 
 timePrefactor, timeDit, timeDah, atomSpacer, letterSpacer, wordSpacer :: Int
 timePrefactor = 10 ^ 5
-timeDit      = timePrefactor *  3
-timeDah      = timePrefactor *  9
-atomSpacer   = timePrefactor *  2
-letterSpacer = timePrefactor * 10
-wordSpacer   = timePrefactor * 20
+timeDit       = timePrefactor *  3
+timeDah       = timePrefactor *  9
+atomSpacer    = timePrefactor *  2
+letterSpacer  = timePrefactor * 10
+wordSpacer    = timePrefactor * 20
 
 
 
 main :: IO ()
-main = bracket makePin nuke morseLoop
-      where makePin = construct (HWID 4) Out
+main = bracket create nuke morseLoop
+      where create = construct (HWID 4) Out
 
 
 
