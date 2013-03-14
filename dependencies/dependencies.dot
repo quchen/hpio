@@ -58,10 +58,8 @@ digraph G {
       Architecture -> DUMMY_architectures
                         [ lhead = cluster_architectures ];
 
-      GPIO API;
       GPIO -> Architecture EXPORTS;
       GPIO -> HighLevel EXPORTS;
-      GPIO -> PinID EXPORTS;
 
 
 

@@ -9,9 +9,9 @@ where
 
 import System.Hardware.GPIO.HighLevel ( PinValue
                                       , PinDirection
-                                      , PinsRef
                                       )
 import System.Hardware.GPIO.PinID
+import System.Hardware.GPIO.PinsRef
 
 
 
@@ -32,7 +32,8 @@ import Data.Functor
 data Architecture = Board
                   | Terminal
 
--- | A 'PinBox' stores the architecture alongside the pins allocated on it.
+-- | A 'PinBox' object stores the architecture alongside the pins allocated on
+--   it.
 data PinBox uid = PinBox Architecture (PinsRef uid)
 
 

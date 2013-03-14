@@ -38,7 +38,6 @@ module System.Hardware.GPIO.HighLevel (
       , PinDirection(..)
       , PinValue(..)
       , HiPin(..)
-      , PinsRef
 
 ) where
 
@@ -61,10 +60,6 @@ data HiPin = HiPin { hiPinHWID :: HWID
                    , hiPinValueH :: ValueHandle
                    }
 
-
--- | Unification of multiple pins. Will also translate between user and hardware
---   IDs.
-type PinsRef a = IORef (Map (UID a) HiPin)
 
 -- | Creates a pin with the specified 'HWID' and 'Direction'.
 --
