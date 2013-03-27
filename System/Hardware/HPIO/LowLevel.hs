@@ -3,7 +3,7 @@
 --   is an abstraction for "echo 1 > /sys/class/gpio/export" type commands, it
 --   makes no attempt at handling exceptions.
 
-module System.Hardware.GPIO.LowLevel (
+module System.Hardware.HPIO.LowLevel (
 
       -- * Initialization, deallocation
         export
@@ -32,8 +32,8 @@ import System.FilePath
 import Control.Exception (catch, SomeException)
 import Prelude hiding (catch)
 
-import System.Hardware.GPIO.Pin
-import System.Hardware.GPIO.PinID
+import System.Hardware.HPIO.BasicPin
+import System.Hardware.HPIO.PinID
 
 
 gpio :: String

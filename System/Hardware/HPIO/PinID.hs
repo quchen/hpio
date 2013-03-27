@@ -1,6 +1,6 @@
 -- | Definition of different pin ID types.
 
-module System.Hardware.GPIO.PinID (
+module System.Hardware.HPIO.PinID (
         HWID(..)
       , UID(..)
 ) where

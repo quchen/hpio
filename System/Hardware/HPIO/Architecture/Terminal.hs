@@ -1,10 +1,10 @@
 -- | TODO
 
-module System.Hardware.GPIO.Architecture.Terminal
+module System.Hardware.HPIO.Architecture.Terminal
 where
 
-import System.Hardware.GPIO.HighLevel
-import System.Hardware.GPIO.PinID
+import System.Hardware.HPIO.HighLevel
+import System.Hardware.HPIO.PinID
 
 
 destruct :: PinsRef uid -> IO ()

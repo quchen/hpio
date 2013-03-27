@@ -1,15 +1,15 @@
 module Main where
 
-import System.Hardware.GPIO
+import System.Hardware.HPIO.Architecture.Board
 
 -- #############################################################################
 -- ## MORSE PROGRAM ############################################################
 -- #############################################################################
 
-import qualified Morse
+--import qualified Morse
 
-main :: IO ()
-main = Morse.main
+--main :: IO ()
+--main = Morse.main
 
 -- #############################################################################
 -- ## END MORSE PROGRAM ########################################################

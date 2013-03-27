@@ -2,5 +2,5 @@
 --
 -- Brief outline: import either HighLevel or Architecture
 
-module System.Hardware.GPIO (
+module System.Hardware.HPIO (
 ) where

@@ -1,4 +1,4 @@
-module System.Hardware.GPIO.Pin (
+module System.Hardware.HPIO.BasicPin (
         PinValue(..)
       , PinDirection(..)
       , ValueHandle(..)
