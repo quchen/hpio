@@ -55,13 +55,13 @@ class Architecture a where
       isConstructable :: (Ord uid) => a -> Pins uid -> UID uid -> HWID -> IO Bool
 
       -- | Updates the value of a pin.
-      setPinValue :: a -> Pins uid -> UID uid -> PinValue -> IO ()
+      setPinValue :: (Ord uid) => a -> Pins uid -> UID uid -> PinValue -> IO ()
 
       -- | Gets the value of a pin.
-      getPinValue :: a -> Pins uid -> UID uid -> IO PinValue
+      getPinValue :: (Ord uid) => a -> Pins uid -> UID uid -> IO PinValue
 
       -- | Sets the direction of a pin.
-      setPinDirection :: a -> Pins uid -> UID uid -> PinDirection -> IO ()
+      setPinDirection :: (Ord uid) => a -> Pins uid -> UID uid -> PinDirection -> IO ()
 
       -- | Gets the direction of a pin.
-      getPinDirection :: a -> Pins uid -> UID uid -> IO PinDirection
+      getPinDirection :: (Ord uid) => a -> Pins uid -> UID uid -> IO PinDirection

@@ -16,7 +16,7 @@ newtype HWID = HWID Int
       deriving (Eq, Ord)
 
 instance Show HWID where
-      show (HWID i) = '#' : show i
+      show (HWID i) = "[HWID " ++ show i ++ "]"
 
 
 
@@ -28,4 +28,4 @@ newtype UID a = UID a
       deriving (Eq, Ord)
 
 instance (Show u) => Show (UID u) where
-      show (UID u) = "[" ++ show u ++ "]"
+      show (UID u) = "[UID " ++ show u ++ "]"

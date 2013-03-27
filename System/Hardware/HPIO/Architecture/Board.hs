@@ -1,5 +1,6 @@
-module System.Hardware.HPIO.Architecture.Board
-where
+module System.Hardware.HPIO.Architecture.Board (
+      Board
+) where
 
 import qualified System.Hardware.HPIO.MidLevel as Mid
 import System.Hardware.HPIO.BasicPin
@@ -30,13 +31,13 @@ instance (Ord uid) => Architecture (Board uid) where
       removePin       _board = removePin
       isOpen          _board = isOpen
       isConstructable _board = isConstructable
-      setPinValue     _board = TODO
-      getPinValue     _board = TODO
-      setPinDirection _board = TODO
-      getPinDirection _board = TODO
+      setPinValue     _board = setPinValue
+      getPinValue     _board = getPinValue
+      setPinDirection _board = setPinDirection
+      getPinDirection _board = getPinDirection
 
--- | Sequences an IO action over all pins contained in a Pins object. Used as
---   a common interface for "destruct" and "nuke".
+-- | Performs an IO action on all pins contained in a Pins object. Used as a
+--   common interface for "destruct" and "nuke".
 sequenceAllPins :: (Mid.Pin -> IO ()) -> Pins uid -> IO ()
 sequenceAllPins f (Pins p) = void $ readIORef p >>= traverse f
 
@@ -60,10 +61,10 @@ addPin (Pins pRef) hwid uid dir = do
 
 absorbPin :: (Ord uid) => Pins uid -> HWID -> UID uid -> PinDirection -> IO ()
 absorbPin (Pins pRef) hwid uid dir = do
-      -- Check existence
+      -- Check whether pin is already allocated
       ex <- Mid.exists hwid
       when (not ex) $ error "Pin not allocated on the hardware, cannot absorb"
-      -- Check previous allocation
+      -- Check previous addition to the known pins
       p <- readIORef pRef
       when (uid `Map.member` p) $ error "Pin already in the pins list"
       -- Everything fine, absorb
@@ -87,74 +88,30 @@ isConstructable pins uid hwid = liftA2 nor open ex
             open    = isOpen pins uid
             ex      = Mid.exists hwid
 
+setPinValue :: (Ord uid) => Pins uid -> UID uid -> PinValue -> IO ()
+setPinValue (Pins pRef) uid v = do
+      p <- readIORef pRef
+      case Map.lookup uid p of
+            Just pin -> Mid.setValue pin v
+            Nothing  -> error "Pin not in pins list"
 
+getPinValue :: (Ord uid) => Pins uid -> UID uid -> IO PinValue
+getPinValue (Pins pRef) uid = do
+      p <- readIORef pRef
+      case Map.lookup uid p of
+            Just pin -> Mid.getValue pin
+            Nothing  -> error "Pin not in pins list"
 
+setPinDirection :: (Ord uid) => Pins uid -> UID uid -> PinDirection -> IO ()
+setPinDirection (Pins pRef) uid dir = do
+      p <- readIORef pRef
+      case Map.lookup uid p of
+            Just pin -> Mid.setDirection pin dir
+            Nothing  -> error "Pin not in pins list"
 
---construct :: HWID -> PinDirection -> IO Pin
-
-
-
---newtype Pins uid = Pins (IORef (Map (UID uid) Pin))
-
-
-
---addHiPin :: (Show uid, Ord uid)
---         => HiPin
---         -> UID uid
---         -> IO ()
---addHiPin = undefined -- TODO
-
---removePin :: (Show uid, Ord uid)
---          => Pins uid
---          -> UID uid
---          -> IO ()
---removePin pins uid = do
---      pins <- readIORef pins
---      if Map.member uid pins
---            then do maybe (return ()) Mid.destruct $ Map.lookup uid pins
---                    -- TODO: If one of the two actions here fails, what
---                    --       should the other one do?
---                    writeIORef pins $ Map.delete uid pins
---            else error $ printf "Pin %s does not exist" (show uid)
-
---setPinValue :: (Show uid, Ord uid)
---            => Pins uid
---            -> UID uid
---            -> PinValue
---            -> IO ()
---setPinValue pins uid value = do
---      pins <- readIORef pins
---      case Map.lookup uid pins of
---            Just hiPin -> Mid.setValue hiPin value
---            Nothing -> error $ printf "Pin %s does not exist" (show uid)
-
---getPinValue :: (Show uid, Ord uid)
---            => Pins uid
---            -> UID uid
---            -> IO PinValue
---getPinValue pins uid = do
---      pins <- readIORef pins
---      case Map.lookup uid pins of
---            Just hiPin -> Mid.getValue hiPin
---            Nothing -> error $ printf "Pin %s does not exist" (show uid)
-
---setPinDirection :: (Show uid, Ord uid)
---                => Pins uid
---                -> UID uid
---                -> PinDirection
---                -> IO ()
---setPinDirection pins uid dir = do
---      pins <- readIORef pins
---      case Map.lookup uid pins of
---            Just hiPin -> Mid.setDirection hiPin dir
---            Nothing -> error $ printf "Pin %s does not exist" (show uid)
-
---getPinDirection :: (Show uid, Ord uid)
---                => Pins uid
---                -> UID uid
---                -> IO PinDirection
---getPinDirection pins uid = do
---      pins <- readIORef pins
---      case Map.lookup uid pins of
---            Just hiPin -> Mid.getDirection hiPin
---            Nothing -> error $ printf "Pin %s does not exist" (show uid)
+getPinDirection :: (Ord uid) => Pins uid -> UID uid -> IO PinDirection
+getPinDirection (Pins pRef) uid = do
+      p <- readIORef pRef
+      case Map.lookup uid p of
+            Just pin -> Mid.getDirection pin
+            Nothing  -> error "Pin not in pins list"
