@@ -1,3 +1,5 @@
+{-# LANGUAGE TypeFamilies #-}
+
 module System.Hardware.HPIO.Architecture.Board (
       Board(..)
 ) where
@@ -7,12 +9,12 @@ import System.Hardware.HPIO.BasicPin
 import System.Hardware.HPIO.PinID
 
 
-import System.Hardware.HPIO.Architecture (PinsR(..), Architecture)
+
 import qualified System.Hardware.HPIO.Architecture as A
 
-import Text.Printf
 import Data.IORef
 import qualified Data.Map as Map
+import Data.Map (Map)
 import Data.Functor
 import Control.Monad
 import Data.Traversable
@@ -24,19 +26,28 @@ newtype Board uid = Board uid
 
 
 
-instance (Ord uid) => Architecture (Board uid) where
+instance (Ord uid) => A.Architecture (Board uid) where
+
+      newtype PinsR uid = PinsR (IORef (Map (UID uid) Mid.Pin))
+
       --              v-- "board" dummy parameter
-      destruct        _ = destruct
-      nuke            _ = nuke
-      addPin          _ = addPin
-      absorbPin       _ = absorbPin
-      removePin       _ = removePin
-      isOpen          _ = isOpen
-      isConstructable _ = isConstructable
-      setPinValue     _ = setPinValue
-      getPinValue     _ = getPinValue
-      setPinDirection _ = setPinDirection
-      getPinDirection _ = getPinDirection
+      A.construct       _ = construct
+      A.destruct        _ = destruct
+      A.nuke            _ = nuke
+      A.addPin          _ = addPin
+      A.absorbPin       _ = absorbPin
+      A.removePin       _ = removePin
+      A.isOpen          _ = isOpen
+      A.isConstructable _ = isConstructable
+      A.setPinValue     _ = setPinValue
+      A.getPinValue     _ = getPinValue
+      A.setPinDirection _ = setPinDirection
+      A.getPinDirection _ = getPinDirection
+
+
+construct :: IO (PinsR uid)
+construct = PinsR <$> newIORef Map.empty
+
 
 -- | Performs an IO action on all pins contained in a PinsR object. Used as a
 --   common interface for "destruct" and "nuke".

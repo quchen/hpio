@@ -1,18 +1,14 @@
+{-# LANGUAGE TypeFamilies #-}
+
 module System.Hardware.HPIO.Architecture (
-      PinsR(..),
       Architecture(..)
 ) where
 
 
-import Data.Functor
-import Data.IORef
-import Data.Map (Map)
-import qualified Data.Map as Map
 
 
 import System.Hardware.HPIO.PinID (UID, HWID)
 import System.Hardware.HPIO.BasicPin
-import System.Hardware.HPIO.MidLevel (Pin)
 
 
 -- | PinsR is a wrapper for an 'IORef' to be used as a global state of open pins
@@ -20,16 +16,18 @@ import System.Hardware.HPIO.MidLevel (Pin)
 --
 --   The "Show" instance required for many functions is to provide better error
 --   messages.
-newtype PinsR uid = PinsR (IORef (Map (UID uid) Pin))
 
 
 -- | An architecture unifies all the GPIO pin functions of a certain device,
 --   for example manipulating GPIO on a Raspberry Pi, or in a terminal.
 class Architecture a where
 
+      -- | Data type to store UID -> Pin associations. It's basically
+      --   @IORef (Map UID Pin)@.
+      data PinsR uid :: *
+
       -- | Construct a new architecture, containing only an empty record.
       construct :: a -> IO (PinsR uid)
-      construct a = PinsR <$> newIORef Map.empty
 
       -- | Deallocate all allocated pins by calling 'removePin' on them.
       destruct :: a -> PinsR uid -> IO ()
