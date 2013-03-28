@@ -10,6 +10,7 @@ import System.Hardware.HPIO.PinID
 
 
 
+import System.Hardware.HPIO.Architecture (Pins)
 import qualified System.Hardware.HPIO.Architecture as A
 
 import Data.IORef
@@ -20,6 +21,8 @@ import Control.Monad
 import Data.Traversable
 import Data.Maybe
 import Control.Applicative
+import Control.Monad.Trans
+import Control.Monad.Trans.RWS
 
 
 newtype Board uid = Board uid
@@ -28,103 +31,143 @@ newtype Board uid = Board uid
 
 instance (Ord uid) => A.Architecture (Board uid) where
 
-      newtype PinsR uid = PinsR (IORef (Map (UID uid) Mid.Pin))
+      newtype Pins uid = Pins (Map (UID uid) Mid.Pin)
 
-      --              v-- "board" dummy parameter
-      A.construct       _ = construct
-      A.destruct        _ = destruct
-      A.nuke            _ = nuke
-      A.addPin          _ = addPin
-      A.absorbPin       _ = absorbPin
-      A.removePin       _ = removePin
-      A.isOpen          _ = isOpen
-      A.isConstructable _ = isConstructable
-      A.setPinValue     _ = setPinValue
-      A.getPinValue     _ = getPinValue
-      A.setPinDirection _ = setPinDirection
-      A.getPinDirection _ = getPinDirection
-
-
-construct :: IO (PinsR uid)
-construct = PinsR <$> newIORef Map.empty
+      construct       = construct
+      destruct        = destruct
+      nuke            = nuke
+      addPin          = undefined
+      absorbPin       = undefined
+      removePin       = undefined
+      isOpen          = undefined
+      isConstructable = undefined
+      setPinValue     = undefined
+      getPinValue     = undefined
+      setPinDirection = undefined
+      getPinDirection = undefined
 
 
--- | Performs an IO action on all pins contained in a PinsR object. Used as a
---   common interface for "destruct" and "nuke".
-traversePins :: (Mid.Pin -> IO ()) -> PinsR uid -> IO ()
-traversePins f (PinsR pins) = void $ readIORef pins >>= traverse f
 
-destruct :: PinsR uid -> IO ()
-destruct = traversePins Mid.destruct
+construct :: RWST a () (Pins uid) IO ()
+construct = do
+      (Pins pins) <- get
+      if Map.null pins
+            then put $ Pins Map.empty
+            else error "Cannot only initialize pins database once!"
 
-nuke :: PinsR uid -> IO ()
-nuke = traversePins Mid.nuke
 
-addPin :: (Ord uid) => PinsR uid -> HWID -> UID uid -> PinDirection -> IO ()
-addPin (PinsR pinsR) hwid uid dir = do
-      -- Check existence
-      ex <- Mid.exists hwid
-      when ex $ error "Pin already allocated on the hardware"
-      -- Check previous allocation
-      p <- readIORef pinsR
-      when (uid `Map.member` p) $ error "Pin already in the pins list"
-      -- Everything fine, allocate
-      newPin <- Mid.construct hwid dir
-      writeIORef pinsR $ Map.insert uid newPin p
 
-absorbPin :: (Ord uid) => PinsR uid -> HWID -> UID uid -> PinDirection -> IO ()
-absorbPin (PinsR pinsR) hwid uid dir = do
-      -- Check whether pin is already allocated
-      ex <- Mid.exists hwid
-      when (not ex) $ error "Pin not allocated on the hardware, cannot absorb"
-      -- Check previous addition to the known pins
-      p <- readIORef pinsR
-      when (uid `Map.member` p) $ error "Pin already in the pins list"
-      -- Everything fine, absorb
-      newPin <- Mid.absorb hwid
-      writeIORef pinsR $ Map.insert uid newPin p
+destruct :: RWST a () (Pins uid) IO ()
+destruct = do
+      (Pins pins) <- get
+      liftIO $ traverse Mid.destruct pins
+      put $ Pins Map.empty
 
-removePin :: (Ord uid) => PinsR uid -> UID uid -> IO ()
-removePin (PinsR pinsR) uid = do
-      p <- readIORef pinsR
-      case Map.lookup uid p of
-            Just pin -> do Mid.destruct pin
-                           writeIORef pinsR (Map.delete uid p)
-            Nothing  -> error "Pin not in pins list"
 
-isOpen :: (Ord uid) => PinsR uid -> UID uid -> IO Bool
-isOpen (PinsR pinsR) uid = readIORef pinsR >>= return . isJust . Map.lookup uid
 
-isConstructable :: (Ord uid) => PinsR uid -> UID uid -> HWID -> IO Bool
-isConstructable pins uid hwid = liftA2 nor open ex
+nuke :: RWST a () (Pins uid) IO ()
+nuke = do
+      (Pins pins) <- get
+      liftIO $ traverse Mid.nuke pins
+      put $ Pins Map.empty
+
+
+
+addPin :: (Ord uid, Show uid) => HWID -> UID uid -> PinDirection -> RWST a () (Pins uid) IO ()
+addPin hwid uid dir = do
+      let msg = "Pin already allocated on the hardware"
+      assertExists True msg hwid
+
+      (Pins pins) <- get
+
+      -- Check whether the pin is already known to the program
+      when (uid `Map.member` pins) $ error "Pin already known"
+
+      -- Create and put new pin
+      newPin <- liftIO $ Mid.construct hwid dir
+      put $ Pins (Map.insert uid newPin pins)
+
+
+
+assertExists :: (MonadIO m) => Bool -> String -> HWID -> m ()
+assertExists should msg hwid = do
+      ex <- liftIO $ Mid.exists hwid
+      when (should /= ex) $ error msg
+      return ()
+
+
+
+absorbPin :: (Ord uid, Show uid) => HWID -> UID uid -> RWST a () (Pins uid) IO ()
+absorbPin hwid uid = do
+      let msg = "Pin not allocated on the hardware, cannot absorb"
+      assertExists False msg hwid
+
+      (Pins pins) <- get
+
+      -- Check whether the pin is already known to the program
+      when (uid `Map.member` pins) $ error "Pin already known"
+
+      -- Absorb pin
+      newPin <- liftIO $ Mid.absorb hwid
+      put $ Pins (Map.insert uid newPin pins)
+
+
+
+removePin :: (Ord uid, Show uid) => UID uid -> RWST a () (Pins uid) IO ()
+removePin uid = do
+      (Pins pins) <- get
+
+      case Map.lookup uid pins of
+            Just pin -> do put $ Pins (Map.delete uid pins)
+                           liftIO $ Mid.destruct pin
+            Nothing -> error "Pin unknown, skipping unexport"
+
+
+
+isOpen :: (Ord uid, Show uid) => UID uid -> RWST a () (Pins uid) IO Bool
+isOpen uid = do (Pins pins) <- get
+                return . isJust . Map.lookup uid $ pins
+
+
+
+isConstructable :: (Ord uid, Show uid) => UID uid -> HWID -> RWST a () (Pins uid) IO Bool
+isConstructable uid hwid = liftA2 nor open ex
       where nor x y = not (x && y)
-            open    = isOpen pins uid
-            ex      = Mid.exists hwid
+            open    = isOpen uid
+            ex      = liftIO $ Mid.exists hwid
 
-setPinValue :: (Ord uid) => PinsR uid -> UID uid -> PinValue -> IO ()
-setPinValue (PinsR pinsR) uid v = do
-      p <- readIORef pinsR
-      case Map.lookup uid p of
-            Just pin -> Mid.setValue pin v
+
+
+setPinValue :: (Ord uid, Show uid) => UID uid -> PinValue -> RWST a () (Pins uid) IO ()
+setPinValue uid v = do
+      (Pins pins) <- get
+      case Map.lookup uid pins of
+            Just pin -> liftIO $ Mid.setValue pin v
             Nothing  -> error "Pin not in pins list"
 
-getPinValue :: (Ord uid) => PinsR uid -> UID uid -> IO PinValue
-getPinValue (PinsR pinsR) uid = do
-      p <- readIORef pinsR
-      case Map.lookup uid p of
-            Just pin -> Mid.getValue pin
+
+
+getPinValue :: (Ord uid, Show uid) => UID uid -> RWST a () (Pins uid) IO PinValue
+getPinValue uid = do
+      (Pins pins) <- get
+      case Map.lookup uid pins of
+            Just pin -> liftIO $ Mid.getValue pin
             Nothing  -> error "Pin not in pins list"
 
-setPinDirection :: (Ord uid) => PinsR uid -> UID uid -> PinDirection -> IO ()
-setPinDirection (PinsR pinsR) uid dir = do
-      p <- readIORef pinsR
-      case Map.lookup uid p of
-            Just pin -> Mid.setDirection pin dir
+
+
+setPinDirection :: (Ord uid, Show uid) => UID uid -> PinDirection -> RWST a () (Pins uid) IO ()
+setPinDirection uid dir = do
+      (Pins pins) <- get
+      case Map.lookup uid pins of
+            Just pin -> liftIO $ Mid.setDirection pin dir
             Nothing  -> error "Pin not in pins list"
 
-getPinDirection :: (Ord uid) => PinsR uid -> UID uid -> IO PinDirection
-getPinDirection (PinsR pinsR) uid = do
-      p <- readIORef pinsR
-      case Map.lookup uid p of
-            Just pin -> Mid.getDirection pin
+
+
+getPinDirection :: (Ord uid, Show uid) => UID uid -> RWST a () (Pins uid) IO PinDirection
+getPinDirection uid = do
+      (Pins pins) <- get
+      case Map.lookup uid pins of
+            Just pin -> liftIO $ Mid.getDirection pin
             Nothing  -> error "Pin not in pins list"

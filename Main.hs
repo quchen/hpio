@@ -1,6 +1,6 @@
 module Main where
 
-import System.Hardware.HPIO.Architecture.Board
+import System.Hardware.HPIO.Architecture.Terminal
 
 -- #############################################################################
 -- ## MORSE PROGRAM ############################################################

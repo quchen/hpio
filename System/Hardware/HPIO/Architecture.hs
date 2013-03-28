@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module System.Hardware.HPIO.Architecture (
-      Architecture(..)
+        Architecture(..)
 ) where
 
 
@@ -10,59 +10,55 @@ module System.Hardware.HPIO.Architecture (
 import System.Hardware.HPIO.PinID (UID, HWID)
 import System.Hardware.HPIO.BasicPin
 
+import Data.Functor
+import Control.Monad.Trans.RWS
 
--- | PinsR is a wrapper for an 'IORef' to be used as a global state of open pins
---   of a device.
---
---   The "Show" instance required for many functions is to provide better error
---   messages.
 
 
 -- | An architecture unifies all the GPIO pin functions of a certain device,
 --   for example manipulating GPIO on a Raspberry Pi, or in a terminal.
 class Architecture a where
 
-      -- | Data type to store UID -> Pin associations. It's basically
-      --   @IORef (Map UID Pin)@.
-      data PinsR uid :: *
+      -- | Data type to store UID -> Pin associations.
+      data Pins uid :: *
 
       -- | Construct a new architecture, containing only an empty record.
-      construct :: a -> IO (PinsR uid)
+      construct :: RWST a () (Pins uid) IO ()
 
       -- | Deallocate all allocated pins by calling 'removePin' on them.
-      destruct :: a -> PinsR uid -> IO ()
+      destruct :: RWST a () (Pins uid) IO ()
 
       -- | Deallocate all pins, ignoring exceptions. Useful for bracketing, so
       --   that the pins are released no matter what when the program finishes.
-      nuke :: a -> PinsR uid -> IO ()
+      nuke :: RWST a () (Pins uid) IO ()
 
       -- | Adds a new pin to the system.
-      addPin :: (Ord uid, Show uid) => a -> PinsR uid -> HWID -> UID uid -> PinDirection -> IO ()
+      addPin :: (Ord uid, Show uid) => HWID -> UID uid -> PinDirection -> RWST a () (Pins uid) IO ()
 
       -- | Incorporates an already open pin into the system.
-      absorbPin :: (Ord uid, Show uid) => a -> PinsR uid -> HWID -> UID uid -> PinDirection -> IO ()
+      absorbPin :: (Ord uid, Show uid) => HWID -> UID uid -> RWST a () (Pins uid) IO ()
 
       -- | Deallocates a pin from the system.
-      removePin :: (Ord uid, Show uid) => a -> PinsR uid -> UID uid -> IO ()
+      removePin :: (Ord uid, Show uid) => UID uid -> RWST a () (Pins uid) IO ()
 
-      -- | Checks whether a pin is currently allocated in the 'PinsR' object.
+      -- | Checks whether a pin is currently allocated in the 'Pins' object.
       --   Note that this does /not/ check whether the pin is present on an OS
-      --   level, only whether this 'PinsR' knows about it.
-      isOpen :: (Ord uid, Show uid) => a -> PinsR uid -> UID uid -> IO Bool
+      --   level, only whether this 'Pins' knows about it.
+      isOpen :: (Ord uid, Show uid) => UID uid -> RWST a () (Pins uid) IO Bool
 
       -- | Checks whether a pin is constructable, i.e. is neither open on a
-      --   hardware level nor known to the current 'PinsR'. Success means that
+      --   hardware level nor known to the current 'Pins'. Success means that
       --   "construct" should not yield an error.
-      isConstructable :: (Ord uid, Show uid) => a -> PinsR uid -> UID uid -> HWID -> IO Bool
+      isConstructable :: (Ord uid, Show uid) => UID uid -> HWID -> RWST a () (Pins uid) IO Bool
 
       -- | Updates the value of a pin.
-      setPinValue :: (Ord uid, Show uid) => a -> PinsR uid -> UID uid -> PinValue -> IO ()
+      setPinValue :: (Ord uid, Show uid) => UID uid -> PinValue -> RWST a () (Pins uid) IO ()
 
       -- | Gets the value of a pin.
-      getPinValue :: (Ord uid, Show uid) => a -> PinsR uid -> UID uid -> IO PinValue
+      getPinValue :: (Ord uid, Show uid) => UID uid -> RWST a () (Pins uid) IO PinValue
 
       -- | Sets the direction of a pin.
-      setPinDirection :: (Ord uid, Show uid) => a -> PinsR uid -> UID uid -> PinDirection -> IO ()
+      setPinDirection :: (Ord uid, Show uid) => UID uid -> PinDirection -> RWST a () (Pins uid) IO ()
 
       -- | Gets the direction of a pin.
-      getPinDirection :: (Ord uid, Show uid) => a -> PinsR uid -> UID uid -> IO PinDirection
+      getPinDirection :: (Ord uid, Show uid) => UID uid -> RWST a () (Pins uid) IO PinDirection
