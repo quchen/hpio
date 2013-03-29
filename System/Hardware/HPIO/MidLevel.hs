@@ -45,8 +45,6 @@ import System.Hardware.HPIO.PinID
 import System.Hardware.HPIO.BasicPin
 
 import Control.Monad
-import Data.IORef
-import Data.Map (Map)
 
 
 

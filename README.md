@@ -1,4 +1,8 @@
-GPIO
+HPIO
 ====
 
-GPIO is a library to interface /sys/class/gpio on Linux. It aims to be a two-level library, with a lower-level end that is only a thin and unsafe wrapper around writing to the gpio files, and a high-level one that handles exceptions and allocations of the pins.
+HPIO is a library to manipulate GPIO pins for use on computers like the Raspberry Pi. It is not finished yet, and the first release aims at the following features:
+
+- Easy to use interface
+- Relatively high abstraction layer
+- Testing environment (no actual GPIO capability is needed to run programs)

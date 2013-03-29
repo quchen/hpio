@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module System.Hardware.HPIO.Architecture.Board (
-      Board(..)
+      board
 ) where
 
 import qualified System.Hardware.HPIO.MidLevel as Mid
@@ -10,13 +10,11 @@ import System.Hardware.HPIO.PinID
 
 
 
-import System.Hardware.HPIO.Architecture (Pins)
+import System.Hardware.HPIO.Architecture (Pins, Architecture, GPIOAction)
 import qualified System.Hardware.HPIO.Architecture as A
 
-import Data.IORef
 import qualified Data.Map as Map
 import Data.Map (Map)
-import Data.Functor
 import Control.Monad
 import Data.Traversable
 import Data.Maybe
@@ -27,37 +25,35 @@ import Control.Monad.Trans.RWS
 
 newtype Board uid = Board uid
 
+board :: Board Int
+board = Board $ error "'board' should never be evaluated."
 
 
-instance (Ord uid) => A.Architecture (Board uid) where
+
+instance (Ord uid) => Architecture (Board uid) where
 
       newtype Pins uid = Pins (Map (UID uid) Mid.Pin)
 
-      construct       = construct
-      destruct        = destruct
-      nuke            = nuke
-      addPin          = undefined
-      absorbPin       = undefined
-      removePin       = undefined
-      isOpen          = undefined
-      isConstructable = undefined
-      setPinValue     = undefined
-      getPinValue     = undefined
-      setPinDirection = undefined
-      getPinDirection = undefined
+      runGPIO         = runGPIO
+
+      addPin          = addPin
+      absorbPin       = absorbPin
+      removePin       = removePin
+      isOpen          = isOpen
+      isConstructable = isConstructable
+      setPinValue     = setPinValue
+      getPinValue     = getPinValue
+      setPinDirection = setPinDirection
+      getPinDirection = getPinDirection
 
 
 
-construct :: RWST a () (Pins uid) IO ()
-construct = do
-      (Pins pins) <- get
-      if Map.null pins
-            then put $ Pins Map.empty
-            else error "Cannot only initialize pins database once!"
+runGPIO :: a -> GPIOAction a uid () -> IO ()
+runGPIO a gpio = void $ runRWST (gpio >> destruct) a (Pins Map.empty)
 
 
 
-destruct :: RWST a () (Pins uid) IO ()
+destruct :: GPIOAction a uid ()
 destruct = do
       (Pins pins) <- get
       liftIO $ traverse Mid.destruct pins
@@ -65,7 +61,7 @@ destruct = do
 
 
 
-nuke :: RWST a () (Pins uid) IO ()
+nuke :: GPIOAction a uid ()
 nuke = do
       (Pins pins) <- get
       liftIO $ traverse Mid.nuke pins
@@ -73,10 +69,10 @@ nuke = do
 
 
 
-addPin :: (Ord uid, Show uid) => HWID -> UID uid -> PinDirection -> RWST a () (Pins uid) IO ()
+addPin :: (Ord uid, Show uid) => HWID -> UID uid -> PinDirection -> GPIOAction a uid ()
 addPin hwid uid dir = do
       let msg = "Pin already allocated on the hardware"
-      assertExists True msg hwid
+      assertExists False msg hwid
 
       (Pins pins) <- get
 
@@ -97,10 +93,10 @@ assertExists should msg hwid = do
 
 
 
-absorbPin :: (Ord uid, Show uid) => HWID -> UID uid -> RWST a () (Pins uid) IO ()
+absorbPin :: (Ord uid, Show uid) => HWID -> UID uid -> GPIOAction a uid ()
 absorbPin hwid uid = do
       let msg = "Pin not allocated on the hardware, cannot absorb"
-      assertExists False msg hwid
+      assertExists True msg hwid
 
       (Pins pins) <- get
 
@@ -113,7 +109,7 @@ absorbPin hwid uid = do
 
 
 
-removePin :: (Ord uid, Show uid) => UID uid -> RWST a () (Pins uid) IO ()
+removePin :: (Ord uid, Show uid) => UID uid -> GPIOAction a uid ()
 removePin uid = do
       (Pins pins) <- get
 
@@ -124,13 +120,13 @@ removePin uid = do
 
 
 
-isOpen :: (Ord uid, Show uid) => UID uid -> RWST a () (Pins uid) IO Bool
+isOpen :: (Ord uid, Show uid) => UID uid -> GPIOAction a uid Bool
 isOpen uid = do (Pins pins) <- get
                 return . isJust . Map.lookup uid $ pins
 
 
 
-isConstructable :: (Ord uid, Show uid) => UID uid -> HWID -> RWST a () (Pins uid) IO Bool
+isConstructable :: (Ord uid, Show uid) => UID uid -> HWID -> GPIOAction a uid Bool
 isConstructable uid hwid = liftA2 nor open ex
       where nor x y = not (x && y)
             open    = isOpen uid
@@ -138,7 +134,7 @@ isConstructable uid hwid = liftA2 nor open ex
 
 
 
-setPinValue :: (Ord uid, Show uid) => UID uid -> PinValue -> RWST a () (Pins uid) IO ()
+setPinValue :: (Ord uid, Show uid) => UID uid -> PinValue -> GPIOAction a uid ()
 setPinValue uid v = do
       (Pins pins) <- get
       case Map.lookup uid pins of
@@ -147,7 +143,7 @@ setPinValue uid v = do
 
 
 
-getPinValue :: (Ord uid, Show uid) => UID uid -> RWST a () (Pins uid) IO PinValue
+getPinValue :: (Ord uid, Show uid) => UID uid -> GPIOAction a uid PinValue
 getPinValue uid = do
       (Pins pins) <- get
       case Map.lookup uid pins of
@@ -156,7 +152,7 @@ getPinValue uid = do
 
 
 
-setPinDirection :: (Ord uid, Show uid) => UID uid -> PinDirection -> RWST a () (Pins uid) IO ()
+setPinDirection :: (Ord uid, Show uid) => UID uid -> PinDirection -> GPIOAction a uid ()
 setPinDirection uid dir = do
       (Pins pins) <- get
       case Map.lookup uid pins of
@@ -165,7 +161,7 @@ setPinDirection uid dir = do
 
 
 
-getPinDirection :: (Ord uid, Show uid) => UID uid -> RWST a () (Pins uid) IO PinDirection
+getPinDirection :: (Ord uid, Show uid) => UID uid -> GPIOAction a uid PinDirection
 getPinDirection uid = do
       (Pins pins) <- get
       case Map.lookup uid pins of

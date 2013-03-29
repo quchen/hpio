@@ -108,7 +108,7 @@ nuke (HWID i) (ValueHandle h)  = do
           doNothing _ = return ()
           close = hClose h
           unexport' = writeFile gpioUnexport $ show i ++ "\n"
-      hClose h `catch` doNothing
+      close `catch` doNothing
       unexport' `catch` doNothing
 -- TODO: The catchall above may not be the ideal solution; instead, possible
 --       exceptions should be ignored individually. See the docs for further

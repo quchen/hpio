@@ -2,6 +2,7 @@
 
 module System.Hardware.HPIO.Architecture (
         Architecture(..)
+      , GPIOAction
 ) where
 
 
@@ -10,8 +11,14 @@ module System.Hardware.HPIO.Architecture (
 import System.Hardware.HPIO.PinID (UID, HWID)
 import System.Hardware.HPIO.BasicPin
 
-import Data.Functor
 import Control.Monad.Trans.RWS
+
+
+
+-- | A GPIOAction allows multiple operations to be chained together. Internally,
+--   it's RWST+IO.
+type GPIOAction arch uid = RWST arch () (Pins uid) IO
+
 
 
 
@@ -22,43 +29,62 @@ class Architecture a where
       -- | Data type to store UID -> Pin associations.
       data Pins uid :: *
 
-      -- | Construct a new architecture, containing only an empty record.
-      construct :: RWST a () (Pins uid) IO ()
-
-      -- | Deallocate all allocated pins by calling 'removePin' on them.
-      destruct :: RWST a () (Pins uid) IO ()
-
-      -- | Deallocate all pins, ignoring exceptions. Useful for bracketing, so
-      --   that the pins are released no matter what when the program finishes.
-      nuke :: RWST a () (Pins uid) IO ()
+      -- | Run a chain of GPIO commands on the specified architecture.
+      runGPIO :: a -- ^ Architecture to use
+              -> GPIOAction a uid () -- ^ GPIO action to run
+              -> IO ()
 
       -- | Adds a new pin to the system.
-      addPin :: (Ord uid, Show uid) => HWID -> UID uid -> PinDirection -> RWST a () (Pins uid) IO ()
+      addPin :: (Ord uid, Show uid)
+             => HWID
+             -> UID uid
+             -> PinDirection
+             -> GPIOAction a uid ()
 
       -- | Incorporates an already open pin into the system.
-      absorbPin :: (Ord uid, Show uid) => HWID -> UID uid -> RWST a () (Pins uid) IO ()
+      absorbPin :: (Ord uid, Show uid)
+                => HWID
+                -> UID uid
+                -> GPIOAction a uid ()
 
       -- | Deallocates a pin from the system.
-      removePin :: (Ord uid, Show uid) => UID uid -> RWST a () (Pins uid) IO ()
+      removePin :: (Ord uid, Show uid)
+                => UID uid
+                -> GPIOAction a uid ()
 
       -- | Checks whether a pin is currently allocated in the 'Pins' object.
       --   Note that this does /not/ check whether the pin is present on an OS
       --   level, only whether this 'Pins' knows about it.
-      isOpen :: (Ord uid, Show uid) => UID uid -> RWST a () (Pins uid) IO Bool
+      isOpen :: (Ord uid, Show uid)
+             => UID uid
+             -> GPIOAction a uid Bool
 
       -- | Checks whether a pin is constructable, i.e. is neither open on a
       --   hardware level nor known to the current 'Pins'. Success means that
       --   "construct" should not yield an error.
-      isConstructable :: (Ord uid, Show uid) => UID uid -> HWID -> RWST a () (Pins uid) IO Bool
+      isConstructable :: (Ord uid, Show uid)
+                      => UID uid
+                      -> HWID
+                      -> GPIOAction a uid Bool
 
       -- | Updates the value of a pin.
-      setPinValue :: (Ord uid, Show uid) => UID uid -> PinValue -> RWST a () (Pins uid) IO ()
+      setPinValue :: (Ord uid, Show uid)
+                  => UID uid
+                  -> PinValue
+                  -> GPIOAction a uid ()
 
       -- | Gets the value of a pin.
-      getPinValue :: (Ord uid, Show uid) => UID uid -> RWST a () (Pins uid) IO PinValue
+      getPinValue :: (Ord uid, Show uid)
+                  => UID uid
+                  -> GPIOAction a uid PinValue
 
       -- | Sets the direction of a pin.
-      setPinDirection :: (Ord uid, Show uid) => UID uid -> PinDirection -> RWST a () (Pins uid) IO ()
+      setPinDirection :: (Ord uid, Show uid)
+                      => UID uid
+                      -> PinDirection
+                      -> GPIOAction a uid ()
 
       -- | Gets the direction of a pin.
-      getPinDirection :: (Ord uid, Show uid) => UID uid -> RWST a () (Pins uid) IO PinDirection
+      getPinDirection :: (Ord uid, Show uid)
+                      => UID uid
+                      -> GPIOAction a uid PinDirection
