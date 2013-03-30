@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module System.Hardware.HPIO.Architecture.Board (
-      board
+      Board(..)
 ) where
 
 import qualified System.Hardware.HPIO.MidLevel as Mid
@@ -23,14 +23,10 @@ import Control.Monad.Trans
 import Control.Monad.Trans.RWS
 
 
-newtype Board uid = Board uid
-
-board :: Board Int
-board = Board $ error "'board' should never be evaluated."
+data Board = Board
 
 
-
-instance (Ord uid) => Architecture (Board uid) where
+instance Architecture Board where
 
       newtype Pins uid = Pins (Map (UID uid) Mid.Pin)
 

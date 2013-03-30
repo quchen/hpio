@@ -14,10 +14,10 @@ import System.Hardware.HPIO.BasicPin
 import Control.Monad.Trans.RWS
 
 
-
 -- | A GPIOAction allows multiple operations to be chained together. Internally,
 --   it's RWST+IO.
 type GPIOAction arch uid = RWST arch () (Pins uid) IO
+
 
 
 
@@ -27,10 +27,11 @@ type GPIOAction arch uid = RWST arch () (Pins uid) IO
 class Architecture a where
 
       -- | Data type to store UID -> Pin associations.
-      data Pins uid :: *
+      data Pins :: * -> *
 
       -- | Run a chain of GPIO commands on the specified architecture.
-      runGPIO :: a -- ^ Architecture to use
+      runGPIO :: (Ord uid)
+              => a -- ^ Architecture to use
               -> GPIOAction a uid () -- ^ GPIO action to run
               -> IO ()
 
