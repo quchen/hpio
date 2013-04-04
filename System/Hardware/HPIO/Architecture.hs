@@ -1,8 +1,7 @@
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module System.Hardware.HPIO.Architecture (
-        Architecture(..)
-      , GPIOAction
+      GPIOAction(..), Architecture(..)
 ) where
 
 
@@ -11,16 +10,48 @@ module System.Hardware.HPIO.Architecture (
 import System.Hardware.HPIO.PinID (UID, HWID)
 import System.Hardware.HPIO.BasicPin
 
-import Control.Monad.Trans.RWS
+import Control.Applicative
+import Control.Monad.Trans
+import Control.Monad.Trans.State
 
 
 -- | A GPIOAction allows multiple operations to be chained together. Internally,
 --   it's RWST+IO.
-type GPIOAction arch uid = RWST arch () (Pins uid) IO
+newtype GPIOAction pins a = GPIOAction { unGPIO :: StateT pins IO a }
+      deriving (Functor, Applicative, Monad, MonadIO)
+
+
+data Architecture pins uid = Architecture {
+
+         addPinA :: HWID -> UID uid -> PinDirection -> GPIOAction (pins uid) ()
+
+      , removePinA :: UID uid -> GPIOAction (pins uid) ()
+
+      , absorbPinA :: HWID -> UID uid -> GPIOAction (pins uid) ()
+
+      , isOpenA :: UID uid -> GPIOAction (pins uid) Bool
+
+      , isConstructableA :: UID uid -> HWID -> GPIOAction (pins uid) Bool
+
+      , setPinValueA :: UID uid -> PinValue -> GPIOAction (pins uid) ()
+
+      , getPinValueA :: UID uid -> GPIOAction (pins uid) PinValue
+
+      , setPinDirectionA :: UID uid -> PinDirection -> GPIOAction (pins uid) ()
+
+      , getPinDirectionA :: UID uid -> GPIOAction (pins uid) PinDirection
+
+}
 
 
 
+-- =============================================================================
+-- OLD IMPLEMENTATION ==========================================================
+-- =============================================================================
 
+
+
+{-
 
 -- | An architecture unifies all the GPIO pin functions of a certain device,
 --   for example manipulating GPIO on a Raspberry Pi, or in a terminal.
@@ -89,3 +120,5 @@ class Architecture a where
       getPinDirection :: (Ord uid, Show uid)
                       => UID uid
                       -> GPIOAction a uid PinDirection
+
+-}

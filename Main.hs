@@ -6,7 +6,7 @@ import System.Hardware.HPIO.Architecture.Board
 import Control.Concurrent
 import Control.Monad.Trans
 
-main = runGPIO Board $ do
+main = runGPIO $ do
       addPin (HWID 4) (UID 0) Out
       setPinValue (UID 0) Hi
       liftIO $ threadDelay $ 10^6
